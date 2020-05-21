@@ -1,0 +1,19 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitolite
+  namespace: gitolite
+  labels:
+    app: gitolite
+  annotations:
+    metallb.universe.tf/allow-shared-ip: UJcTY0EMWfmbYbYkX42d2W4R1Jrw1DH5
+spec:
+  ports:
+  - name: ssh
+    port: 22
+    protocol: TCP
+    targetPort: 22
+  selector:
+    app: gitolite
+  type: LoadBalancer

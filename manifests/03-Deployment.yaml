@@ -1,0 +1,68 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitolite
+  namespace: gitolite
+  labels:
+   app: gitolite
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitolite
+  template:
+    metadata:
+      labels:
+        app: gitolite
+    spec:
+      initContainers:
+      - name: prepare-volumes
+        image: busybox
+        command: ["sh", "-c", "test -d /data/hostkeys || mkdir -p /data/hostkeys /data/git"]
+        volumeMounts:
+        - name: storage
+          mountPath: /data
+      - name: copy-secret
+        image: busybox
+        command: ["sh", "-c", "test -f /data/s3/secret && cp /data/s3/secret /data/git/.s3_secret"]
+        volumeMounts:
+        - name: storage
+          mountPath: /data
+        - name: s3-secret
+          mountPath: /data/s3
+      - name: fix-volume-permissions
+        image: busybox
+        command: ["sh", "-c", "chown -R 10000:10000 /data"]
+        volumeMounts:
+        - name: storage
+          mountPath: /data
+      containers:
+      - name: gitolite
+        image: reg.this-is-fine.io/gitolite:latest
+        imagePullPolicy: Always
+        env:
+        - name: SSH_USER
+          value: "ff0x"
+        - name: SSH_KEY
+          value: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDhuiYnIuhycKo/KOZVLXposh0CHHXQwkIwX9juTHxmG0xmOiR2VGLIkGFxxD8K01zGKRRPOaBKh3x0Se+WZExAaOb5DoZOb9WpSR3r0L7PzvmXe9RIMebFS2KThrwcmCTgEtflijcIyLINloWAGRkKQOuv2xOv5k19w0qZ3uQbWwhaNiowDn9NFgTbdbvQlVCa8PcZ8i4dUdnI85byJeF1SEySDZzzUGbFfYVrQTMjH7cSiymrLqOZjB7/E7pcv1CJVy/Kk8nTcvfkTc2UymogGWVuW6nUDrapxaKAmTYP6dc+pcVxwKLG1HDMPIwpXwPZxqjRc8JDdfaIDpabndsIP7Gb+1lcnWiLyJtebY4lU1iJejFN4QMMCI5Up4tfTNMlrSZz/Docei4ykkC6nREb4uXoNLML8c63yWtMto00FaE2F5FPi/c66IrfnVIXEYfLdv0liVDeQxltM2ndEDefIqoz//3ZNxDabgdVZ/Pd2hhRWmC6j0LK0RGMkptvQjMgd0tgkwdTtkFFWajRg75i0Xb/YHxewJ4lW1du815X4AWtGO3J6gJAjm699GzpvAwmWWkJVT3lFZfW/pEhYu7phqJ1/FXr2FW3lnzsif39UVTVNKwakxgkInkwvLNNBBBoXV7lp7s69REkukCDex3jCSo3Jfus8ym4qcTHsuRArQ== ff0x [openpgp:0xBBDACC0CA21DFC32442CD40843CCBC6BDEADBEEF]"
+        ports:
+        - containerPort: 30022
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /var/lib/git
+          name: storage
+          subPath: git
+        - mountPath: /etc/dropbear
+          name: storage
+          subPath: hostkeys
+      imagePullSecrets:
+      - name: registry-pull-secret
+      volumes:
+      - name: storage
+        persistentVolumeClaim:
+          claimName: gitolite-data
+      - name: s3-secret
+        secret:
+          secretName: s3-secret-wasabi
+

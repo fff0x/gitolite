@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+SSH_USER=${SSH_USER:-admin}
+
+if [[ ! -f /var/lib/${DAEMON_USER}/.ssh/authorized_keys ]]; then
+  if [[ -n "$SSH_KEY" ]]; then
+    su - ${DAEMON_USER} -c "gitolite setup -pk \"/tmp/${SSH_USER}.pub\""
+    rm -f "/tmp/${SSH_USER}.pub"
+  else
+    exit 1
+  fi
+else
+  su - ${DAEMON_USER} -c "gitolite setup"
+fi
+
+if [[ -f "/var/lib/${DAEMON_USER}/.gitolite.rc" ]]; then
+  sed -i -E "s@(GIT_CONFIG_KEYS.*)''@\1'\.\*'@" /var/lib/${DAEMON_USER}/.gitolite.rc
+fi
+
+if [[ -d "/opt/hooks/common" ]] && [[ -d "/var/lib/${DAEMON_USER}/.gitolite/hooks/common" ]]; then
+  find /opt/hooks/common -type f -exec ln -sf {} /var/lib/${DAEMON_USER}/.gitolite/hooks/common \;
+
+  su - ${DAEMON_USER} -c "gitolite setup"
+fi
